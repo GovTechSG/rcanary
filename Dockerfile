@@ -32,6 +32,9 @@ RUN cargo build --release --target "${ARCHITECTURE}" -v --frozen
 
 FROM alpine:3.5
 ARG ARCHITECTURE=x86_64-unknown-linux-musl
+RUN set -x \
+    && apk update \
+    && apk add ca-certificates
 WORKDIR /app
 COPY --from=builder /app/src/target/${ARCHITECTURE}/release/rcanary .
 CMD ["/app/rcanary"]

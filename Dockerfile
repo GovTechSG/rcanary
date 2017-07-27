@@ -1,25 +1,6 @@
-FROM japaric/x86_64-unknown-linux-musl:v0.1.11 as builder
-MAINTAINER Yong Wen Chua <me@yongwen.xyz>
-ENV PATH "/root/.cargo/bin:${PATH}"
+FROM lawliet89/docker-rust:1.19.0 as builder
 
-ARG RUST_VERSION=1.19.0
 ARG ARCHITECTURE=x86_64-unknown-linux-musl
-RUN set -x \
-    && apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-                                          build-essential \
-                                          ca-certificates \
-                                          curl \
-                                          libcurl3 \
-                                          git \
-                                          file \
-                                          libssl-dev \
-                                          pkg-config \
-    && curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain ${RUST_VERSION} \
-    && rustup target add "${ARCHITECTURE}" \
-    && apt-get remove -y --auto-remove curl \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 WORKDIR /app/src
 COPY Cargo.toml Cargo.lock ./
@@ -30,11 +11,18 @@ RUN cargo build --release --target "${ARCHITECTURE}" -v --frozen
 
 # Runtime Image
 
-FROM alpine:3.5
+FROM alpine:3.6
 ARG ARCHITECTURE=x86_64-unknown-linux-musl
+
+ENV OPENSSL_DIR=/openssl \
+    OPENSSL_INCLUDE_DIR=/openssl/include \
+    OPENSSL_LIB_DIR=/openssl/lib
+COPY --from=builder /openssl /openssl
+
 RUN set -x \
-    && apk update \
-    && apk add ca-certificates
+    && apk add --update ca-certificates \
+    && update-ca-certificates
+
 WORKDIR /app
 COPY --from=builder /app/src/target/${ARCHITECTURE}/release/rcanary .
 CMD ["/app/rcanary"]
